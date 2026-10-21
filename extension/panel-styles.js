@@ -54,7 +54,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   border: 1px solid #2c2c33;
   border-radius: 12px;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
-  overflow: hidden;
+  overflow: visible;
 }
 .panel[hidden] { display: none; }
 .head {
@@ -78,6 +78,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .head-actions button:hover { background: #2e2e37; }
 .list {
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -117,7 +118,21 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .row.current .idx { background: #3b82f6; color: #fff; }
 .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meta { flex: none; color: #8b8b95; font-size: 11px; }
-.row-actions { display: flex; gap: 2px; }
+.row-actions { display: flex; align-items: center; gap: 2px; }
+.row.dragging { opacity: 0.45; }
+.grip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 22px;
+  color: #6f6f78;
+  cursor: grab;
+}
+.grip:hover { color: #b9b9c2; }
+.grip:active { cursor: grabbing; }
+.grip svg { width: 14px; height: 14px; fill: currentColor; }
+.row-actions button svg { width: 13px; height: 13px; fill: none; stroke: currentColor; }
 .row-actions button {
   width: 22px;
   height: 22px;
@@ -126,7 +141,14 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   font-size: 12px;
 }
 .row-actions button:hover { background: #2e2e37; color: #e8e8ea; }
-.progress { position: relative; padding-block: 12px 2px; padding-inline: 12px; }
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-block: 12px 2px;
+  padding-inline: 12px;
+}
+.progress { position: relative; flex: 1; }
 .progress-track {
   position: relative;
   height: 4px;
@@ -184,6 +206,42 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   height: 12px;
   background: transparent;
   -webkit-appearance: none;
+}
+.volume { position: relative; flex: none; }
+.volume-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: #b9b9c2;
+}
+.volume-toggle:hover { background: #2e2e37; color: #e8e8ea; }
+.volume-toggle svg { width: 16px; height: 16px; fill: currentColor; }
+.volume-slider {
+  position: absolute;
+  inset-block-end: 24px;
+  inset-inline-end: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 5px;
+  border-radius: 8px;
+  background: #24242b;
+  border: 1px solid #2c2c33;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+.volume:hover .volume-slider { display: flex; }
+.volume-range {
+  -webkit-appearance: slider-vertical;
+  appearance: slider-vertical;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 18px;
+  height: 86px;
+  margin: 0;
+  accent-color: #3b82f6;
 }
 .progress-info {
   display: flex;

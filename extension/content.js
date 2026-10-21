@@ -25,6 +25,9 @@
   let advanceTimer = null;
   let pauseTimer = null;
   let lastUserClick = 0;
+  let dragId = null;
+  let volume = 1;
+  let muted = false;
 
   const abs = (url) => {
     if (!url) return '';
@@ -35,7 +38,28 @@
     }
   };
 
-  const attrSrc = (el) => el.getAttribute('src') || el.getAttribute('data-src') || '';
+  const AUDIO_FILE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac|weba|mp4)(\?|#|$)/i;
+
+  function sourceChildSrc(el) {
+    for (const source of el.querySelectorAll('source')) {
+      const value = source.getAttribute('src') || source.getAttribute('data-src');
+      if (value) return value;
+    }
+    return '';
+  }
+
+  function resolveSrc(el) {
+    if (el.currentSrc) return el.currentSrc;
+    const direct =
+      el.getAttribute('src') ||
+      el.getAttribute('data-src') ||
+      el.getAttribute('data-audio-src') ||
+      el.getAttribute('data-url');
+    if (direct) return direct;
+    return sourceChildSrc(el);
+  }
+
+  const attrSrc = (el) => resolveSrc(el);
 
   const itemById = (id) => items.find((item) => item.id === id);
 
@@ -87,7 +111,7 @@
 
   function durationOf(item) {
     const el = player.getAttribute('src') === item.src ? player : item.el;
-    if (!Number.isFinite(el.duration)) return '';
+    if (!el || !Number.isFinite(el.duration)) return '';
     const total = Math.round(el.duration);
     const min = Math.floor(total / 60);
     const sec = String(total % 60).padStart(2, '0');
@@ -164,6 +188,14 @@
     el.addEventListener('error', () => {
       if (driver === 'element' && driverItemId === currentId) skipCurrent();
     });
+    el.addEventListener('loadedmetadata', () => {
+      const item = items.find((entry) => entry.el === el && entry.src && !entry.src.startsWith('blob:'));
+      if (item && el.currentSrc && el.currentSrc !== item.src && !el.getAttribute('src')) {
+        item.src = el.currentSrc;
+        syncOrder();
+      }
+      render();
+    });
     el.addEventListener('timeupdate', () => {
       if (source === 'page' || driver === 'element') updateProgress();
     });
@@ -173,11 +205,8 @@
   }
 
   function addMedia(el) {
+    if (!(el instanceof Element) || !el.matches(MEDIA)) return;
     const attr = attrSrc(el);
-    if (attr.startsWith('blob:')) {
-      attachListeners(el);
-      return;
-    }
     const src = abs(attr);
     const previous = el.__qpSrc;
     if (known.has(el) && previous === attr) return;
@@ -186,14 +215,17 @@
 
     if (!src) {
       if (known.has(el) && previous === '') return;
-      pushItem(el, src, titleFor(el, `Track ${items.length + 1}`, src));
+      pushItem(el, src, titleFor(el, `Track ${items.length + 1}`, src), 'element');
       return;
     }
+
+    const kind = src.startsWith('blob:') ? 'element' : 'url';
 
     if (known.has(el) && previous === '') {
       const lazy = itemById(el.__qpItem);
       if (lazy) {
         lazy.src = src;
+        lazy.kind = kind;
         lazy.createdAt = performance.now();
         syncOrder();
         refreshTitle(el, lazy);
@@ -206,16 +238,38 @@
       refreshTitle(el, duplicate);
       return;
     }
-    pushItem(el, src, titleFor(el, `Track ${items.length + 1}`, src));
+    pushItem(el, src, titleFor(el, `Track ${items.length + 1}`, src), kind);
   }
 
-  function pushItem(el, src, title) {
-    const item = { id: nextId, el, src, title, createdAt: performance.now() };
+  function addAudioLinks() {
+    for (const link of document.querySelectorAll('a[href]')) {
+      const href = link.getAttribute('href') || '';
+      if (!href || href.startsWith('#') || !AUDIO_FILE.test(href)) continue;
+      const src = abs(href);
+      if (items.some((item) => item.src === src)) continue;
+      const label = (link.textContent || '').replace(/\s+/g, ' ').trim();
+      pushItem(null, src, label || fileName(src) || 'Audio file', 'url');
+    }
+  }
+
+  function addNetworkAudio() {
+    const entries = performance.getEntriesByType('resource');
+    for (const entry of entries) {
+      const url = entry.name || '';
+      if (!AUDIO_FILE.test(url)) continue;
+      const src = abs(url);
+      if (items.some((item) => item.src === src)) continue;
+      pushItem(null, src, fileName(src) || 'Audio file', 'url');
+    }
+  }
+
+  function pushItem(el, src, title, kind) {
+    const item = { id: nextId, el, src, title, kind: kind || 'url', createdAt: performance.now() };
     nextId += 1;
     items.push(item);
-    el.__qpItem = item.id;
+    if (el) el.__qpItem = item.id;
     syncOrder();
-    refreshTitle(el, item);
+    if (el) refreshTitle(el, item);
   }
 
   function refreshTitle(el, item) {
@@ -236,7 +290,7 @@
 
   function silencePageMedia() {
     document.querySelectorAll(MEDIA).forEach((el) => {
-      if (el !== pageEl && !el.paused) el.pause();
+      if (el !== pageEl && !el.paused && typeof el.pause === 'function') el.pause();
     });
   }
 
@@ -250,9 +304,10 @@
   }
 
   function mirrorToPage(item) {
-    const shared = items.filter((entry) => entry.el === item.el).length > 1;
+    if (!item.src) return;
+    const shared = item.el ? items.filter((entry) => entry.el === item.el).length > 1 : false;
     const el = pageEl || (shared ? item.el : null);
-    if (!el || !item.src) return;
+    if (!el) return;
     pageEl = el;
     try {
       el.muted = true;
@@ -302,7 +357,7 @@
     driverItemId = null;
     if (!player.paused) player.pause();
     try {
-      el.muted = false;
+      el.muted = muted;
     } catch {
       // element refuses volume change
     }
@@ -327,6 +382,10 @@
       skipCurrent();
       return;
     }
+    if (item.kind === 'element') {
+      playThroughElement(item);
+      return;
+    }
     source = 'own';
     silencePageMedia();
     driver = 'own';
@@ -335,6 +394,7 @@
       if (player.getAttribute('src') !== item.src) player.src = item.src;
       else if (player.ended) player.currentTime = 0;
       if (restart && player.currentTime > 0) player.currentTime = 0;
+      applyVolume();
       await player.play();
       playing = true;
     } catch (error) {
@@ -353,6 +413,10 @@
 
   function playThroughElement(item) {
     const el = item.el;
+    if (!el || typeof el.play !== 'function') {
+      skipCurrent();
+      return;
+    }
     source = 'page';
     pageEl = el;
     driver = 'element';
@@ -369,6 +433,7 @@
         // element refuses src assignment, play whatever it already holds
       }
     }
+    applyVolume();
     el.play()
       .then(() => {
         playing = true;
@@ -439,7 +504,7 @@
     if (item.el.paused) {
       playItem(currentId);
     } else {
-      item.el.pause();
+      if (typeof item.el.pause === 'function') item.el.pause();
       playing = false;
       render();
     }
@@ -517,13 +582,48 @@
     render();
   }
 
-  function moveItem(id, delta) {
-    const index = indexOfId(id);
-    const target = index + delta;
-    if (index < 0 || target < 0 || target >= items.length) return;
-    const [item] = items.splice(index, 1);
-    items.splice(target, 0, item);
-    syncOrder();
+  function fileExtension(url) {
+    const match = /\.([a-z0-9]{2,5})(?:[?#]|$)/i.exec(url || '');
+    return match ? `.${match[1]}` : '';
+  }
+
+  async function downloadItem(item) {
+    if (!item || !item.src || item.src.startsWith('blob:')) return;
+    const name = `${fileName(item.src) || 'track'}${fileExtension(item.src)}`;
+    try {
+      const response = await fetch(item.src, { credentials: 'include' });
+      if (!response.ok) throw new Error('request failed');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 20000);
+    } catch {
+      const link = document.createElement('a');
+      link.href = item.src;
+      link.download = name;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      document.body.append(link);
+      link.click();
+      link.remove();
+    }
+  }
+
+  function commitDragOrder() {
+    const ids = [...list.querySelectorAll('.row')].map((row) => Number(row.dataset.id));
+    if (ids.length === items.length) {
+      const byId = new Map(items.map((item) => [item.id, item]));
+      const sorted = ids.map((id) => byId.get(id)).filter(Boolean);
+      items.length = 0;
+      items.push(...sorted);
+      syncOrder();
+    }
+    dragId = null;
     render();
   }
 
@@ -547,6 +647,8 @@
 
   function rescan() {
     document.querySelectorAll(MEDIA).forEach(addMedia);
+    addAudioLinks();
+    if (!items.some((item) => item.src)) addNetworkAudio();
     syncOrder();
     render();
     updateMediaSession();
@@ -565,6 +667,15 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1.5l4 4-4 4"/><path d="M3.5 12v-1.5a4.5 4.5 0 0 1 4.5-4.5h13"/><path d="M7 22.5l-4-4 4-4"/><path d="M20.5 12v1.5a4.5 4.5 0 0 1-4.5 4.5h-13"/></g><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor" stroke="none">1</text></svg>',
     shuffle:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5h4.5v4.5"/><path d="M3.5 20.5L21 3.5"/><path d="M21 16.5v4.5h-4.5"/><path d="M15 15l6 6"/><path d="M3.5 3.5l5 5"/></g></svg>',
+    grip: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></g></svg>',
+    download:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v10"/><path d="M8 10l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></g></svg>',
+    volume:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></g></svg>',
+    volumeLow:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    volumeMuted:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
   };
 
   const host = document.createElement('div');
@@ -640,6 +751,28 @@
   progressRange.value = '0';
   progress.append(progressTrack, progressRange);
 
+  const progressRow = document.createElement('div');
+  progressRow.className = 'progress-row';
+  const volumeBox = document.createElement('div');
+  volumeBox.className = 'volume';
+  const volumeToggle = document.createElement('button');
+  volumeToggle.className = 'volume-toggle';
+  volumeToggle.dataset.act = 'volume';
+  volumeToggle.title = 'Volume';
+  volumeToggle.innerHTML = ICONS.volume;
+  const volumeSlider = document.createElement('div');
+  volumeSlider.className = 'volume-slider';
+  const volumeRange = document.createElement('input');
+  volumeRange.type = 'range';
+  volumeRange.className = 'volume-range';
+  volumeRange.min = '0';
+  volumeRange.max = '1';
+  volumeRange.step = '0.01';
+  volumeRange.value = '1';
+  volumeSlider.append(volumeRange);
+  volumeBox.append(volumeToggle, volumeSlider);
+  progressRow.append(progress, volumeBox);
+
   const progressInfo = document.createElement('div');
   progressInfo.className = 'progress-info';
   const timeLabel = document.createElement('span');
@@ -692,7 +825,7 @@
   const status = document.createElement('div');
   status.className = 'status';
 
-  panel.append(head, list, toast, progress, progressInfo, foot, status);
+  panel.append(head, list, toast, progressRow, progressInfo, foot, status);
   root.append(fab, panel, player);
   document.documentElement.append(host);
 
@@ -719,6 +852,24 @@
   ['timeupdate', 'progress', 'durationchange', 'loadedmetadata', 'seeking', 'seeked', 'ended', 'canplay'].forEach(
     (event) => player.addEventListener(event, updateProgress),
   );
+
+  volumeBox.addEventListener(
+    'wheel',
+    (event) => {
+      event.preventDefault();
+      const stepSize = event.deltaY > 0 ? -0.05 : 0.05;
+      volume = Math.min(1, Math.max(0, volume + stepSize));
+      muted = volume === 0;
+      applyVolume();
+    },
+    { passive: false },
+  );
+
+  volumeRange.addEventListener('input', () => {
+    volume = Number(volumeRange.value);
+    muted = false;
+    applyVolume();
+  });
 
   progressRange.addEventListener('input', () => {
     const media = currentMedia();
@@ -796,6 +947,17 @@
     sizeLabel.textContent = parts.join(' · ');
   }
 
+  function applyVolume() {
+    player.volume = volume;
+    player.muted = muted;
+    if (pageEl) {
+      pageEl.volume = volume;
+      if (source === 'page') pageEl.muted = muted;
+    }
+    volumeRange.value = String(volume);
+    volumeToggle.innerHTML = ICONS[muted || volume === 0 ? 'volumeMuted' : volume < 0.5 ? 'volumeLow' : 'volume'];
+  }
+
   function makeRowButton(label, action, id) {
     const button = document.createElement('button');
     button.dataset.act = action;
@@ -829,15 +991,22 @@
 
       const meta = document.createElement('span');
       meta.className = 'meta';
-      meta.textContent = [item.el.tagName.toLowerCase(), durationOf(item)].filter(Boolean).join(' · ');
+      const kind = item.el ? item.el.tagName.toLowerCase() : 'file';
+      meta.textContent = [kind, durationOf(item)].filter(Boolean).join(' · ');
 
       const actions = document.createElement('div');
       actions.className = 'row-actions';
-      actions.append(
-        makeRowButton('↑', 'up', item.id),
-        makeRowButton('↓', 'down', item.id),
-        makeRowButton('✕', 'remove', item.id),
-      );
+      const grip = document.createElement('span');
+      grip.className = 'grip';
+      grip.draggable = true;
+      grip.title = 'Drag to reorder';
+      grip.innerHTML = ICONS.grip;
+      const download = makeRowButton('', 'download', item.id);
+      download.innerHTML = ICONS.download;
+      download.title = 'Download this track';
+      const remove = makeRowButton('✕', 'remove', item.id);
+      remove.title = 'Remove from the queue';
+      actions.append(grip, download, remove);
 
       row.append(idx, title, meta, actions);
       list.append(row);
@@ -867,6 +1036,37 @@
     updateProgress();
   }
 
+  list.addEventListener('dragstart', (event) => {
+    const row = event.target.closest('.row');
+    if (!row) return;
+    dragId = Number(row.dataset.id);
+    row.classList.add('dragging');
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', String(dragId));
+    event.dataTransfer.setDragImage(row, 24, 12);
+  });
+
+  list.addEventListener('dragover', (event) => {
+    if (dragId === null) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'move';
+    const dragged = list.querySelector('.row.dragging');
+    const row = event.target.closest('.row');
+    if (!dragged || !row || row === dragged) return;
+    const rect = row.getBoundingClientRect();
+    const after = event.clientY > rect.top + rect.height / 2;
+    list.insertBefore(dragged, after ? row.nextSibling : row);
+  });
+
+  list.addEventListener('drop', (event) => {
+    event.preventDefault();
+    commitDragOrder();
+  });
+
+  list.addEventListener('dragend', () => {
+    commitDragOrder();
+  });
+
   root.addEventListener('click', (event) => {
     if (!(event.target instanceof Element)) return;
     const action = event.target.closest('[data-act]');
@@ -874,15 +1074,10 @@
     const act = action?.dataset.act || '';
 
     if (row) {
+      if (event.target.closest('.grip')) return;
       const rowId = Number(row.dataset.id);
-      if (act === 'up') {
-        moveItem(rowId, -1);
-        render();
-        return;
-      }
-      if (act === 'down') {
-        moveItem(rowId, 1);
-        render();
+      if (act === 'download') {
+        downloadItem(itemById(rowId));
         return;
       }
       if (act === 'remove') {
@@ -922,6 +1117,10 @@
       case 'shuffle':
         toggleShuffle();
         break;
+      case 'volume':
+        muted = !muted;
+        applyVolume();
+        break;
       case 'resume':
         playItem(currentId);
         break;
@@ -943,7 +1142,10 @@
       navigator.mediaSession.setActionHandler('play', () => togglePlay());
       navigator.mediaSession.setActionHandler('pause', () => {
         if (source === 'own') player.pause();
-        else itemById(currentId)?.el.pause();
+        else {
+          const current = itemById(currentId);
+          if (current?.el && typeof current.el.pause === 'function') current.el.pause();
+        }
       });
       navigator.mediaSession.setActionHandler('previoustrack', () => prev());
       navigator.mediaSession.setActionHandler('nexttrack', () => next());
@@ -985,7 +1187,9 @@
           });
         }
       } else if (record.type === 'attributes' && record.attributeName === 'src') {
-        const el = record.target;
+        const target = record.target;
+        const el = target.matches(MEDIA) ? target : target.parentElement?.closest(MEDIA);
+        if (!el) continue;
         addMedia(el);
         const item = itemById(currentId);
         const userActed = performance.now() - lastUserClick < 400;
