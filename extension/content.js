@@ -9,12 +9,22 @@
   let nextId = 1;
   let order = [];
   let currentId = null;
+  let runStartId = null;
   let position = 0;
   let playing = false;
   let repeatMode = 'off';
   let shuffle = false;
   let blocked = false;
   let driver = 'own';
+  let driverItemId = null;
+  let source = 'own';
+  let pageEl = null;
+  let mirrorPending = false;
+  let mirrorTimer = null;
+  let pageAdvancing = false;
+  let advanceTimer = null;
+  let pauseTimer = null;
+  let lastUserClick = 0;
 
   const abs = (url) => {
     if (!url) return '';
@@ -54,8 +64,6 @@
       const value = (el.getAttribute(name) || '').trim();
       if (value) return value;
     }
-    const recent = el.__qpText;
-    if (recent && performance.now() - recent.at < 1500) return recent.text;
     const labelledBy = el.getAttribute('aria-labelledby');
     if (labelledBy) {
       const text = labelledBy
@@ -97,6 +105,7 @@
         const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
         if (!text || text.length > 60 || /^[\d:.\s]+$/.test(text)) continue;
         el.__qpText = { text, at: performance.now() };
+        el.__qpTexts = (el.__qpTexts || []).concat([el.__qpText]).slice(-10);
       }
     });
     watcher.observe(parent, { childList: true, subtree: true, characterData: true });
@@ -107,22 +116,59 @@
     known.add(el);
     watchText(el);
     el.addEventListener('ended', () => {
-      if (driver === 'element' && isCurrent(el)) advance();
+      if (driver === 'element' && driverItemId === currentId) {
+        advance();
+        return;
+      }
+      if (source === 'own') {
+        pageAdvancing = true;
+        clearTimeout(advanceTimer);
+        advanceTimer = setTimeout(() => {
+          pageAdvancing = false;
+        }, 400);
+      }
     });
     el.addEventListener('play', () => {
-      if (driver === 'element' && isCurrent(el)) {
+      pageEl = el;
+      if (mirrorPending) {
+        mirrorPending = false;
+        clearTimeout(mirrorTimer);
+        return;
+      }
+      if (pageAdvancing && performance.now() - lastUserClick > 400) {
+        pageAdvancing = false;
+        clearTimeout(advanceTimer);
+        return;
+      }
+      if (driver === 'element' && driverItemId === currentId) {
         playing = true;
         render();
+        return;
       }
+      adoptPagePlayback(el);
     });
     el.addEventListener('pause', () => {
-      if (driver === 'element' && isCurrent(el) && !el.ended) {
+      if (driver === 'element' && driverItemId === currentId && !el.ended) {
         playing = false;
         render();
+        return;
       }
+      if (source !== 'page' || pageEl !== el) return;
+      clearTimeout(pauseTimer);
+      pauseTimer = setTimeout(() => {
+        if (!el.paused || el.ended) return;
+        playing = false;
+        render();
+      }, 200);
     });
     el.addEventListener('error', () => {
-      if (driver === 'element' && isCurrent(el)) skipCurrent();
+      if (driver === 'element' && driverItemId === currentId) skipCurrent();
+    });
+    el.addEventListener('timeupdate', () => {
+      if (source === 'page' || driver === 'element') updateProgress();
+    });
+    el.addEventListener('progress', () => {
+      if (source === 'page' || driver === 'element') updateProgress();
     });
   }
 
@@ -148,7 +194,7 @@
       const lazy = itemById(el.__qpItem);
       if (lazy) {
         lazy.src = src;
-        lazy.title = titleFor(el, lazy.title, src);
+        lazy.createdAt = performance.now();
         syncOrder();
         refreshTitle(el, lazy);
         return;
@@ -157,7 +203,6 @@
 
     const duplicate = items.find((item) => item.src && item.src === src);
     if (duplicate) {
-      duplicate.title = titleFor(el, duplicate.title, src);
       refreshTitle(el, duplicate);
       return;
     }
@@ -165,7 +210,7 @@
   }
 
   function pushItem(el, src, title) {
-    const item = { id: nextId, el, src, title };
+    const item = { id: nextId, el, src, title, createdAt: performance.now() };
     nextId += 1;
     items.push(item);
     el.__qpItem = item.id;
@@ -175,10 +220,11 @@
 
   function refreshTitle(el, item) {
     setTimeout(() => {
-      const recent = el.__qpText;
-      if (!recent || performance.now() - recent.at > 3000) return;
       if (item.title && !item.title.startsWith('Track ')) return;
-      item.title = recent.text;
+      const changes = el.__qpTexts || [];
+      const match = changes.find((change) => change.at >= item.createdAt);
+      if (!match) return;
+      item.title = match.text;
       render();
     }, 500);
   }
@@ -190,11 +236,89 @@
 
   function silencePageMedia() {
     document.querySelectorAll(MEDIA).forEach((el) => {
-      if (!el.paused) el.pause();
+      if (el !== pageEl && !el.paused) el.pause();
     });
   }
 
-  async function playItem(id) {
+  function itemForSource(src) {
+    if (!src) return null;
+    return items.find((item) => item.src && item.src === src) || null;
+  }
+
+  function pageSrc(el) {
+    return abs(el.getAttribute('src') || '');
+  }
+
+  function mirrorToPage(item) {
+    const shared = items.filter((entry) => entry.el === item.el).length > 1;
+    const el = pageEl || (shared ? item.el : null);
+    if (!el || !item.src) return;
+    pageEl = el;
+    try {
+      el.muted = true;
+      if (pageSrc(el) !== item.src) {
+        el.src = item.src;
+      }
+      mirrorPending = true;
+      clearTimeout(mirrorTimer);
+      mirrorTimer = setTimeout(() => {
+        mirrorPending = false;
+      }, 600);
+      const started = el.play();
+      if (started && started.catch) started.catch(() => {});
+    } catch {
+      // page element cannot mirror, the queue keeps running on its own player
+    }
+  }
+
+  function reassertMirror(el, item) {
+    const position = el.currentTime;
+    try {
+      el.src = item.src;
+      const restore = () => {
+        el.removeEventListener('loadedmetadata', restore);
+        try {
+          el.currentTime = position;
+        } catch {
+          // metadata not ready yet
+        }
+        mirrorPending = true;
+        clearTimeout(mirrorTimer);
+        mirrorTimer = setTimeout(() => {
+          mirrorPending = false;
+        }, 600);
+        const started = el.play();
+        if (started && started.catch) started.catch(() => {});
+      };
+      el.addEventListener('loadedmetadata', restore);
+    } catch {
+      // element refuses src assignment
+    }
+  }
+
+  function adoptPagePlayback(el) {
+    source = 'page';
+    pageEl = el;
+    driverItemId = null;
+    if (!player.paused) player.pause();
+    try {
+      el.muted = false;
+    } catch {
+      // element refuses volume change
+    }
+    addMedia(el);
+    const item = itemForSource(el.currentSrc) || itemForSource(pageSrc(el));
+    if (item) {
+      currentId = item.id;
+      runStartId = item.id;
+      syncPosition();
+    }
+    playing = true;
+    render();
+    updateMediaSession();
+  }
+
+  async function playItem(id, restart = false) {
     const item = itemById(id);
     if (!item) return;
     currentId = id;
@@ -203,11 +327,14 @@
       skipCurrent();
       return;
     }
+    source = 'own';
     silencePageMedia();
     driver = 'own';
+    driverItemId = null;
     try {
       if (player.getAttribute('src') !== item.src) player.src = item.src;
       else if (player.ended) player.currentTime = 0;
+      if (restart && player.currentTime > 0) player.currentTime = 0;
       await player.play();
       playing = true;
     } catch (error) {
@@ -219,13 +346,22 @@
         return;
       }
     }
+    mirrorToPage(item);
     render();
     updateMediaSession();
   }
 
   function playThroughElement(item) {
     const el = item.el;
+    source = 'page';
+    pageEl = el;
     driver = 'element';
+    driverItemId = item.id;
+    try {
+      el.muted = false;
+    } catch {
+      // element refuses volume change
+    }
     if (item.src && el.currentSrc !== item.src) {
       try {
         el.src = item.src;
@@ -240,6 +376,7 @@
         updateMediaSession();
       })
       .catch((error) => {
+        if (itemById(currentId)?.id !== item.id) return;
         playing = false;
         if (error && error.name === 'NotAllowedError') {
           blocked = true;
@@ -263,8 +400,9 @@
       return;
     }
     if (repeatMode === 'all' && order.length > 1) {
-      position = 0;
-      playItem(order[0]);
+      const restart = order.indexOf(runStartId);
+      position = restart >= 0 ? restart : 0;
+      playItem(order[position]);
       return;
     }
     playing = false;
@@ -273,7 +411,7 @@
 
   function advance() {
     if (repeatMode === 'one') {
-      playItem(currentId);
+      playItem(currentId, true);
       return;
     }
     next();
@@ -285,7 +423,7 @@
       if (order.length) startFrom(order[0]);
       return;
     }
-    if (driver === 'own') {
+    if (source === 'own') {
       if (player.paused) {
         player.play().catch(() => {
           blocked = true;
@@ -315,8 +453,9 @@
       return;
     }
     if (repeatMode === 'all') {
-      position = 0;
-      playItem(order[0]);
+      const restart = order.indexOf(runStartId);
+      position = restart >= 0 ? restart : 0;
+      playItem(order[position]);
       return;
     }
     playing = false;
@@ -342,8 +481,9 @@
       order = items.map((item) => item.id);
       position = order.indexOf(id);
     }
+    runStartId = id;
     currentId = id;
-    playItem(id);
+    playItem(id, true);
   }
 
   function syncOrder() {
@@ -465,6 +605,32 @@
   resumeButton.textContent = 'Resume';
   toast.append(document.createTextNode('Autoplay blocked by browser. '), resumeButton);
 
+  const progress = document.createElement('div');
+  progress.className = 'progress';
+  const progressTrack = document.createElement('div');
+  progressTrack.className = 'progress-track';
+  const progressBuffer = document.createElement('div');
+  progressBuffer.className = 'progress-buffer';
+  const progressPlayed = document.createElement('div');
+  progressPlayed.className = 'progress-played';
+  const progressHandle = document.createElement('div');
+  progressHandle.className = 'progress-handle';
+  progressTrack.append(progressBuffer, progressPlayed, progressHandle);
+  const progressRange = document.createElement('input');
+  progressRange.type = 'range';
+  progressRange.className = 'progress-range';
+  progressRange.min = '0';
+  progressRange.max = '0';
+  progressRange.step = '0.01';
+  progressRange.value = '0';
+  progress.append(progressTrack, progressRange);
+
+  const progressInfo = document.createElement('div');
+  progressInfo.className = 'progress-info';
+  const timeLabel = document.createElement('span');
+  const sizeLabel = document.createElement('span');
+  progressInfo.append(timeLabel, sizeLabel);
+
   const foot = document.createElement('div');
   foot.className = 'foot';
   const transportRow = document.createElement('div');
@@ -497,29 +663,109 @@
   const status = document.createElement('div');
   status.className = 'status';
 
-  panel.append(head, list, toast, foot, status);
+  panel.append(head, list, toast, progress, progressInfo, foot, status);
   root.append(fab, panel, player);
   document.documentElement.append(host);
 
   player.addEventListener('ended', () => {
-    if (driver === 'own') advance();
+    if (source === 'own') advance();
   });
   player.addEventListener('play', () => {
-    if (driver !== 'own') return;
+    if (source !== 'own') return;
     playing = true;
     render();
   });
   player.addEventListener('pause', () => {
-    if (driver !== 'own') return;
+    if (source !== 'own') return;
     playing = false;
     render();
   });
   player.addEventListener('error', () => {
-    if (driver !== 'own') return;
+    if (source !== 'own') return;
     const item = itemById(currentId);
-    if (item) playThroughElement(item);
-    else skipCurrent();
+    if (!item || player.getAttribute('src') !== item.src) return;
+    playThroughElement(item);
   });
+
+  ['timeupdate', 'progress', 'durationchange', 'loadedmetadata', 'seeking', 'seeked', 'ended', 'canplay'].forEach(
+    (event) => player.addEventListener(event, updateProgress),
+  );
+
+  progressRange.addEventListener('input', () => {
+    const media = currentMedia();
+    if (!media) return;
+    const target = Number(progressRange.value);
+    if (!Number.isFinite(target)) return;
+    try {
+      media.currentTime = target;
+    } catch {
+      // media not seekable yet
+    }
+    updateProgress();
+  });
+
+  function formatTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+    const total = Math.floor(seconds);
+    const min = Math.floor(total / 60);
+    const sec = String(total % 60).padStart(2, '0');
+    return `${min}:${sec}`;
+  }
+
+  function formatBytes(bytes) {
+    if (!bytes) return '';
+    if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function downloadSize(url) {
+    if (!url || url.startsWith('data:')) return 0;
+    let bytes = 0;
+    performance.getEntriesByType('resource').forEach((entry) => {
+      if (entry.name !== url) return;
+      bytes += entry.transferSize || entry.encodedBodySize || 0;
+    });
+    return bytes;
+  }
+
+  function currentMedia() {
+    if (source === 'page' && pageEl) return pageEl;
+    const item = itemById(currentId);
+    if (!item) return null;
+    return player;
+  }
+
+  function updateProgress() {
+    const media = currentMedia();
+    const item = itemById(currentId);
+    const duration = media && Number.isFinite(media.duration) ? media.duration : 0;
+    const time = media ? media.currentTime || 0 : 0;
+    let bufferedEnd = 0;
+    if (media && media.buffered && media.buffered.length) {
+      for (let i = 0; i < media.buffered.length; i += 1) {
+        const start = media.buffered.start(i);
+        const end = media.buffered.end(i);
+        if (start <= time + 0.1 && end >= time) {
+          bufferedEnd = end;
+          break;
+        }
+        bufferedEnd = Math.max(bufferedEnd, end);
+      }
+    }
+    const playedPercent = duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
+    const bufferedPercent = duration > 0 ? Math.min(100, (bufferedEnd / duration) * 100) : 0;
+    progressPlayed.style.width = `${playedPercent}%`;
+    progressBuffer.style.width = `${bufferedPercent}%`;
+    progressHandle.style.left = `${playedPercent}%`;
+    if (document.activeElement !== progressRange) progressRange.value = String(time);
+    progressRange.max = String(duration || 0);
+    timeLabel.textContent = `${formatTime(time)} / ${formatTime(duration)}`;
+    const bytes = downloadSize(item?.src || '');
+    const parts = [];
+    if (duration > 0) parts.push(`buffered ${formatTime(bufferedEnd)} (${Math.round(bufferedPercent)}%)`);
+    if (bytes) parts.push(`${formatBytes(bytes)} downloaded`);
+    sizeLabel.textContent = parts.join(' · ');
+  }
 
   function makeRowButton(label, action, id) {
     const button = document.createElement('button');
@@ -541,6 +787,8 @@
     items.forEach((item, index) => {
       const row = document.createElement('div');
       row.className = item.id === currentId ? 'row current' : 'row';
+      row.dataset.id = String(item.id);
+      row.title = 'Play from here';
 
       const idx = makeRowButton(String(index + 1), 'play', item.id);
       idx.className = 'idx';
@@ -583,17 +831,44 @@
     ]
       .filter(Boolean)
       .join(' · ');
-    const progress = item ? `${indexOfId(currentId) + 1}/${items.length}` : `${items.length} track(s)`;
+    const progressText = item ? `${indexOfId(currentId) + 1}/${items.length}` : `${items.length} track(s)`;
     status.textContent = item
-      ? `${playing ? 'Playing' : 'Paused'}: ${item.title} — ${progress}${modes ? ` · ${modes}` : ''}`
-      : `${progress}${modes ? ` · ${modes}` : ''}`;
+      ? `${playing ? 'Playing' : 'Paused'}: ${item.title} — ${progressText}${modes ? ` · ${modes}` : ''}`
+      : `${progressText}${modes ? ` · ${modes}` : ''}`;
+    updateProgress();
   }
 
   root.addEventListener('click', (event) => {
-    const target = event.target instanceof Element ? event.target.closest('[data-act]') : null;
-    if (!target) return;
-    const id = Number(target.dataset.id);
-    switch (target.dataset.act) {
+    if (!(event.target instanceof Element)) return;
+    const action = event.target.closest('[data-act]');
+    const row = event.target.closest('.row');
+    const act = action?.dataset.act || '';
+
+    if (row) {
+      const rowId = Number(row.dataset.id);
+      if (act === 'up') {
+        moveItem(rowId, -1);
+        render();
+        return;
+      }
+      if (act === 'down') {
+        moveItem(rowId, 1);
+        render();
+        return;
+      }
+      if (act === 'remove') {
+        removeItem(rowId);
+        render();
+        return;
+      }
+      if (Number.isInteger(rowId) && itemById(rowId)) {
+        startFrom(rowId);
+        render();
+        return;
+      }
+    }
+
+    switch (act) {
       case 'toggle':
         panel.hidden = !panel.hidden;
         break;
@@ -601,8 +876,7 @@
         rescan();
         break;
       case 'play':
-        if (Number.isInteger(id) && itemById(id)) startFrom(id);
-        else togglePlay();
+        togglePlay();
         break;
       case 'prev':
         prev();
@@ -618,15 +892,6 @@
         break;
       case 'shuffle':
         toggleShuffle();
-        break;
-      case 'up':
-        moveItem(id, -1);
-        break;
-      case 'down':
-        moveItem(id, 1);
-        break;
-      case 'remove':
-        removeItem(id);
         break;
       case 'resume':
         playItem(currentId);
@@ -648,7 +913,7 @@
       });
       navigator.mediaSession.setActionHandler('play', () => togglePlay());
       navigator.mediaSession.setActionHandler('pause', () => {
-        if (driver === 'own') player.pause();
+        if (source === 'own') player.pause();
         else itemById(currentId)?.el.pause();
       });
       navigator.mediaSession.setActionHandler('previoustrack', () => prev());
@@ -657,6 +922,15 @@
       // media session not available on this page
     }
   }
+
+  document.addEventListener(
+    'click',
+    (event) => {
+      if (event.composedPath().includes(host)) return;
+      lastUserClick = performance.now();
+    },
+    true,
+  );
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message || typeof message.type !== 'string' || !message.type.startsWith('qp:')) return undefined;
@@ -682,7 +956,13 @@
           });
         }
       } else if (record.type === 'attributes' && record.attributeName === 'src') {
-        addMedia(record.target);
+        const el = record.target;
+        addMedia(el);
+        const item = itemById(currentId);
+        const userActed = performance.now() - lastUserClick < 400;
+        if (source === 'own' && !userActed && item && item.el === el && item.src && pageSrc(el) !== item.src) {
+          reassertMirror(el, item);
+        }
         dirty = true;
       }
     }

@@ -88,6 +88,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   gap: 8px;
   padding: 6px 8px;
   border-radius: 8px;
+  cursor: pointer;
 }
 .row:hover { background: #212128; }
 .row.current { background: rgba(59, 130, 246, 0.16); box-shadow: inset 2px 0 0 #3b82f6; }
@@ -112,6 +113,72 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   font-size: 12px;
 }
 .row-actions button:hover { background: #2e2e37; color: #e8e8ea; }
+.progress { position: relative; padding: 12px 12px 2px; }
+.progress-track {
+  position: relative;
+  height: 4px;
+  border-radius: 2px;
+  background: #2e2e37;
+}
+.progress-buffer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: #4a4a55;
+}
+.progress-played {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  border-radius: 2px;
+  background: #3b82f6;
+}
+.progress-handle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+}
+.progress:hover .progress-handle { opacity: 1; }
+.progress-range {
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  width: calc(100% - 24px);
+  height: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.progress-range::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+  background: transparent;
+  -webkit-appearance: none;
+}
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 12px 0;
+  color: #8b8b95;
+  font-size: 11px;
+}
 .toast {
   display: flex;
   align-items: center;

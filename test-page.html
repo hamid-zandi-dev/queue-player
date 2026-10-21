@@ -32,6 +32,12 @@
 
     <ul id="list"></ul>
 
+    <h2>Real file over HTTP</h2>
+    <p>
+      Served from disk, so the panel can show the downloaded size and the buffered amount.
+    </p>
+    <ul id="files"></ul>
+
     <h2>Reused player element</h2>
     <p>
       One <code>&lt;audio&gt;</code> element that swaps its <code>src</code>, like a real site player.
@@ -82,6 +88,16 @@
         audio.src = tone(freq);
         item.append(audio, document.createTextNode(` Tone ${index + 1} (${freq} Hz)`));
         list.append(item);
+      });
+
+      const files = document.getElementById('files');
+      ['tone3s.wav'].forEach((name) => {
+        const item = document.createElement('li');
+        const audio = document.createElement('audio');
+        audio.setAttribute('data-title', `File ${name}`);
+        audio.src = 'test-audio/' + name;
+        item.append(audio, document.createTextNode(` File ${name}`));
+        files.append(item);
       });
 
       const reuse = document.getElementById('reuse');
