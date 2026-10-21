@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Queue Player</title>
+    <style>
+      body {
+        width: 260px;
+        margin: 0;
+        padding: 14px;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-size: 13px;
+        background: #17171b;
+        color: #e8e8ea;
+      }
+      h1 {
+        margin: 0 0 4px;
+        font-size: 14px;
+      }
+      p {
+        margin: 0 0 12px;
+        color: #8b8b95;
+        font-size: 12px;
+      }
+      button {
+        display: block;
+        width: 100%;
+        margin-bottom: 8px;
+        padding: 8px 10px;
+        border: 0;
+        border-radius: 8px;
+        background: #2563eb;
+        color: #fff;
+        font: inherit;
+        cursor: pointer;
+      }
+      button.secondary {
+        background: #24242b;
+        color: #cfcfd6;
+      }
+      button:hover {
+        background: #1d4ed8;
+      }
+      button.secondary:hover {
+        background: #2e2e37;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Queue Player</h1>
+    <p id="status">Checking this page…</p>
+    <button id="open">Open queue panel</button>
+    <button id="rescan" class="secondary">Rescan page</button>
+    <p>Reload the page after installing or updating the extension.</p>
+    <script src="popup.js"></script>
+  </body>
+</html>
