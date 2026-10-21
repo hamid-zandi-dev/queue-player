@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Discovery test page</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 40px;
+        color: #1c1c1e;
+      }
+      li {
+        margin: 6px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Discovery test page</h1>
+    <p>Every audio shape a site can use. The queue should find all of them and ignore the rest.</p>
+
+    <h2>Media element with &lt;source&gt; children</h2>
+    <audio data-title="Source based track">
+      <source src="test-audio/tone3s.wav" type="audio/wav" />
+    </audio>
+
+    <h2>Lazy element with data-src</h2>
+    <audio data-title="Lazy track" data-src="test-audio/tone2s.wav"></audio>
+
+    <h2>Blob backed element</h2>
+    <audio data-title="Blob track"></audio>
+
+    <h2>Plain audio links</h2>
+    <ul>
+      <li><a href="test-audio/tone1s.wav">Link track</a></li>
+      <li><a href="test-audio/tone4s.wav">Second link track</a></li>
+      <li><a href="/not-audio.html">Not audio</a></li>
+    </ul>
+
+    <h2>Elements that must be ignored</h2>
+    <img id="dyn-img" alt="dynamic image" />
+    <p>Nothing below is media, but they all use a src attribute.</p>
+
+    <script>
+      const blob = new Blob([new Uint8Array([0])], { type: 'audio/wav' });
+      document.querySelector('[data-title="Blob track"]').src = URL.createObjectURL(blob);
+      setTimeout(() => {
+        document.getElementById('dyn-img').src = 'test-audio/tone3s.wav';
+      }, 600);
+    </script>
+  </body>
+</html>
