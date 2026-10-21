@@ -35,35 +35,63 @@ For `file://` URLs enable **Allow access to file URLs** on the extension card.
 | Control | Action |
 | --- | --- |
 | ♪ button | Show / hide the queue panel |
-| Number button on a row | Play that track, then continue from that track to the end of the list |
+| Progress bar | Drag or click to seek inside the current track |
+| Any part of a row (number, title, meta) | Play that track and start the run from there |
 | ↑ / ↓ | Move track up or down in the queue |
 | ✕ | Remove track from the queue |
 | Prev | Previous track in the play order (restarts the track when already first) |
 | ▶ / ❚❚ | Play / pause |
 | Next | Next track in the play order |
-| All | Repeat the whole list after the last track |
+| All | Repeat the run after its last track |
 | One | Repeat the current track forever |
 | Shuffle | Play the remaining tracks in random order |
 | Rescan | Look for tracks added to the page since load |
 
-Clicking a row is the important one: the queue keeps playing from that item onward instead of stopping on it. With **Shuffle** on, the random order continues from the clicked item. **All**, **One** and **Shuffle** are independent toggles; **All** and **One** exclude each other.
+Clicking a row is the important one. The queue does not stop on that item: it keeps playing the following items, one by one, in list order. **All** then loops that same run, so a run started in the middle of the list keeps its shape (item 4 → 5 → 6 → 4 → 5 …) instead of jumping back to item 1. **Shuffle** plays the remaining tracks in random order, still starting from the clicked item. **All**, **One** and **Shuffle** are independent toggles; **All** and **One** exclude each other.
 
 Tracks that cannot play (no source, broken URL, unsupported format) are skipped automatically, so the queue never stalls on them.
 
+## Progress bar
+
+The bar above the transport buttons shows the current position and is seekable (click or drag). Under the time it shows what the browser already has:
+
+- `buffered 1:12 (48%)` — how much of the track is in the media buffer.
+- `4.2 MB downloaded` — bytes fetched so far for the current source, summed over the range requests the player made.
+
+Sources served as `data:` URLs have no transfer size, so only the buffered amount is shown for them.
+
 When a track ends, the next one starts automatically. The panel also registers Media Session handlers, so hardware media keys (play/pause/next/previous) work.
+
+## Two-way sync
+
+The panel and the page are the same player, seen from two sides:
+
+- **Page → panel**: when the site plays a track, the panel marks that row as current, shows its position in the progress bar, and stays quiet (the site keeps the sound). The site keeps leading until you act in the panel.
+- **Panel → page**: when you play a track from the panel, the page's own media element is switched to the same track and plays it muted, so the site's UI (row highlight, progress, time) follows the queue while the sound comes from the panel. A site that swaps `src` on `ended` is fought off, so the queue order wins.
+
+If the site takes over (you press play on the page), the panel hands control back: the site becomes the sound source and the panel follows it again.
+
+## How it plays
+
+The extension plays the queue through its own hidden audio element and pauses the page's own media while the queue runs. That keeps the extension out of the way of the site's player: a site that swaps `src` on `ended` cannot interrupt the queue, and the queue never restarts a track mid-way.
+
+Fallback: if the source cannot be played by the extension (signed URL, special headers, DRM), the extension hands playback back to the page's own media element for that track.
+
+Queue entries are deduplicated by source URL, so a player that reuses one element for every song still gives one entry per song. Track names come from `data-title` / `aria-label` / track wrappers, and for reused players from the site's visible "now playing" label.
 
 ## How tracks are detected
 
 - Every `<audio>` and `<video>` element on the page is collected.
 - New elements and `src` changes are picked up automatically (MutationObserver), so players that build their list lazily are still covered.
-- One element reused for every song is handled too: each new `src` becomes a new queue entry, and the element source is restored when the entry is played.
-- Titles come from `data-title`, `data-track-title`, `data-name`, `aria-label`, `title`, `aria-labelledby`, or the closest list item / track wrapper.
+- One element reused for every song is handled too: each new `src` becomes a queue entry, and the same source is never listed twice.
+- Titles come from `data-title`, `data-track-title`, `data-name`, `aria-label`, `title`, `aria-labelledby`, the closest list item / track wrapper, or the site's visible "now playing" label.
 
 ## Limits
 
 - Players built on MediaSource (MediaSource Extensions) hand out `blob:` URLs that die as soon as the site moves to the next song. Those elements are skipped, because replaying them later is impossible. The extension still watches them, so a player that swaps plain URLs works.
 - Chrome autoplay policy can block the first programmatic `play()`. When that happens the panel shows **Autoplay blocked by browser. Resume** — one click resumes, and the click also unlocks auto-advance for the rest of the queue.
-- The extension drives the page's own media elements, so a site player that fights for control of the same element can behave oddly.
+- The extension pauses the page's own media while the queue runs, so the site player shows "paused" during queue playback.
+- A track that only plays inside the site player (signed URL, special headers, DRM) is handed back to the page's element, and the site player can then interrupt the queue.
 
 ## Files
 
