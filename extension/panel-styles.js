@@ -2,8 +2,8 @@ globalThis.QP_STYLES = `
 :host {
   all: initial;
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  inset-inline-end: 16px;
+  inset-block-end: 32px;
   z-index: 2147483647;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
@@ -19,7 +19,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   justify-content: center;
   width: 44px;
   height: 44px;
-  margin-left: auto;
+  margin-inline-start: auto;
   border-radius: 50%;
   background: #2563eb;
   color: #fff;
@@ -29,8 +29,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .fab:hover { background: #1d4ed8; }
 .badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
+  inset-block-start: -4px;
+  inset-inline-end: -4px;
   min-width: 18px;
   height: 18px;
   padding: 0 4px;
@@ -43,8 +43,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 }
 .panel {
   position: absolute;
-  right: 0;
-  bottom: 56px;
+  inset-inline-end: 0;
+  inset-block-end: 56px;
   width: 360px;
   max-width: calc(100vw - 32px);
   max-height: 70vh;
@@ -62,12 +62,14 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 10px 12px;
+  padding-block: 10px;
+  padding-inline: 12px;
   border-bottom: 1px solid #2c2c33;
 }
 .head-actions { display: flex; gap: 6px; }
 .head-actions button {
-  padding: 4px 8px;
+  padding-block: 4px;
+  padding-inline: 8px;
   border-radius: 6px;
   background: #24242b;
   color: #cfcfd6;
@@ -86,12 +88,23 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding-block: 6px;
+  padding-inline: 8px;
   border-radius: 8px;
   cursor: pointer;
+  position: relative;
 }
 .row:hover { background: #212128; }
-.row.current { background: rgba(59, 130, 246, 0.16); box-shadow: inset 2px 0 0 #3b82f6; }
+.row.current { background: rgba(59, 130, 246, 0.16); }
+.row.current::before {
+  content: '';
+  position: absolute;
+  inset-block: 6px;
+  inset-inline-start: 0;
+  width: 2px;
+  border-radius: 1px;
+  background: #3b82f6;
+}
 .idx {
   flex: none;
   width: 26px;
@@ -113,7 +126,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   font-size: 12px;
 }
 .row-actions button:hover { background: #2e2e37; color: #e8e8ea; }
-.progress { position: relative; padding: 12px 12px 2px; }
+.progress { position: relative; padding-block: 12px 2px; padding-inline: 12px; }
 .progress-track {
   position: relative;
   height: 4px;
@@ -122,8 +135,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 }
 .progress-buffer {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   height: 100%;
   width: 0;
   border-radius: 2px;
@@ -131,8 +144,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 }
 .progress-played {
   position: absolute;
-  top: 0;
-  left: 0;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   height: 100%;
   width: 0;
   border-radius: 2px;
@@ -140,11 +153,12 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 }
 .progress-handle {
   position: absolute;
-  top: 50%;
-  left: 0;
+  inset-block-start: 50%;
+  inset-inline-start: 0;
   width: 10px;
   height: 10px;
-  margin: -5px 0 0 -5px;
+  margin-block-start: -5px;
+  margin-inline-start: -5px;
   border-radius: 50%;
   background: #fff;
   opacity: 0;
@@ -152,8 +166,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .progress:hover .progress-handle { opacity: 1; }
 .progress-range {
   position: absolute;
-  top: 8px;
-  left: 12px;
+  inset-block-start: 8px;
+  inset-inline-start: 12px;
   width: calc(100% - 24px);
   height: 12px;
   margin: 0;
@@ -175,7 +189,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 12px 0;
+  padding-block: 4px 0;
+  padding-inline: 12px;
   color: #8b8b95;
   font-size: 11px;
 }
@@ -183,7 +198,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding-block: 8px;
+  padding-inline: 12px;
   background: #3b2a12;
   color: #fbbf24;
   font-size: 12px;
@@ -194,14 +210,35 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 8px 12px;
+  padding-block: 8px;
+  padding-inline: 12px;
   border-top: 1px solid #2c2c33;
 }
 .foot-row { display: flex; align-items: center; gap: 6px; }
-.foot button { flex: 1; padding: 6px 8px; border-radius: 8px; background: #24242b; font-size: 12px; }
+.foot button { flex: 1; border-radius: 8px; background: #24242b; font-size: 12px; }
+.foot-row.transport button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-block: 8px;
+  padding-inline: 8px;
+}
+.foot-row.transport svg { width: 20px; height: 20px; fill: currentColor; }
+.foot-row.modes button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding-block: 6px;
+  padding-inline: 4px;
+}
+.foot-row.modes .icon { display: flex; }
+.foot-row.modes svg { width: 18px; height: 18px; fill: currentColor; }
+.foot-row.modes .label { font-size: 10px; line-height: 1; color: #b9b9c2; }
+.foot-row.modes button.on .label { color: #fff; }
 .foot button:hover { background: #2e2e37; }
 .foot button.primary { background: #2563eb; color: #fff; }
 .foot button.on { background: #3b82f6; color: #fff; }
-.status { padding: 6px 12px 10px; color: #8b8b95; font-size: 11px; }
-.empty { padding: 18px 12px; color: #8b8b95; text-align: center; }
+.status { padding-block: 6px 10px; padding-inline: 12px; color: #8b8b95; font-size: 11px; }
+.empty { padding-block: 18px; padding-inline: 12px; color: #8b8b95; text-align: center; }
 `;

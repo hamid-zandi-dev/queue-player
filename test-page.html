@@ -48,6 +48,10 @@
     <audio id="reuse" data-title="Reused element track"></audio>
 
     <script>
+      if (new URLSearchParams(location.search).has('rtl')) {
+        document.documentElement.dir = 'rtl';
+      }
+
       function tone(freq, seconds = 2) {
         const rate = 8000;
         const count = rate * seconds;

@@ -554,9 +554,24 @@
 
   // ----- UI -----
 
+  const ICONS = {
+    prev: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5h2.5v14H6zM19.5 5.5v13L9 12z"/></svg>',
+    next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 5H18v14h-2.5zM4.5 5.5v13L15 12z"/></svg>',
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5l12 7.5-12 7.5z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5h4v15H6zM14 4.5h4v15h-4z"/></svg>',
+    repeat:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1.5l4 4-4 4"/><path d="M3.5 12v-1.5a4.5 4.5 0 0 1 4.5-4.5h13"/><path d="M7 22.5l-4-4 4-4"/><path d="M20.5 12v1.5a4.5 4.5 0 0 1-4.5 4.5h-13"/></g></svg>',
+    repeatOne:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1.5l4 4-4 4"/><path d="M3.5 12v-1.5a4.5 4.5 0 0 1 4.5-4.5h13"/><path d="M7 22.5l-4-4 4-4"/><path d="M20.5 12v1.5a4.5 4.5 0 0 1-4.5 4.5h-13"/></g><text x="12" y="16" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor" stroke="none">1</text></svg>',
+    shuffle:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5h4.5v4.5"/><path d="M3.5 20.5L21 3.5"/><path d="M21 16.5v4.5h-4.5"/><path d="M15 15l6 6"/><path d="M3.5 3.5l5 5"/></g></svg>',
+  };
+
   const host = document.createElement('div');
   host.id = 'queue-player-root';
   const root = host.attachShadow({ mode: 'open' });
+
+  host.style.setProperty('direction', 'ltr', 'important');
 
   const style = document.createElement('style');
   style.textContent = globalThis.QP_STYLES;
@@ -634,28 +649,42 @@
   const foot = document.createElement('div');
   foot.className = 'foot';
   const transportRow = document.createElement('div');
-  transportRow.className = 'foot-row';
+  transportRow.className = 'foot-row transport';
   const modesRow = document.createElement('div');
-  modesRow.className = 'foot-row';
-  const prevButton = document.createElement('button');
-  prevButton.dataset.act = 'prev';
-  prevButton.textContent = 'Prev';
-  const playButton = document.createElement('button');
+  modesRow.className = 'foot-row modes';
+
+  const iconButton = (action, name, title) => {
+    const button = document.createElement('button');
+    button.dataset.act = action;
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    button.innerHTML = ICONS[name];
+    return button;
+  };
+
+  const modeButton = (action, name, label, title) => {
+    const button = document.createElement('button');
+    button.className = 'mode';
+    button.dataset.act = action;
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    const icon = document.createElement('span');
+    icon.className = 'icon';
+    icon.innerHTML = ICONS[name];
+    const text = document.createElement('span');
+    text.className = 'label';
+    text.textContent = label;
+    button.append(icon, text);
+    return button;
+  };
+
+  const prevButton = iconButton('prev', 'prev', 'Previous track');
+  const playButton = iconButton('play', 'play', 'Play or pause');
   playButton.className = 'primary';
-  playButton.dataset.act = 'play';
-  playButton.textContent = '▶';
-  const nextButton = document.createElement('button');
-  nextButton.dataset.act = 'next';
-  nextButton.textContent = 'Next';
-  const repeatAllButton = document.createElement('button');
-  repeatAllButton.dataset.act = 'repeatall';
-  repeatAllButton.textContent = 'All';
-  const repeatOneButton = document.createElement('button');
-  repeatOneButton.dataset.act = 'repeatone';
-  repeatOneButton.textContent = 'One';
-  const shuffleButton = document.createElement('button');
-  shuffleButton.dataset.act = 'shuffle';
-  shuffleButton.textContent = 'Shuffle';
+  const nextButton = iconButton('next', 'next', 'Next track');
+  const repeatAllButton = modeButton('repeatall', 'repeat', 'All', 'Repeat the whole list');
+  const repeatOneButton = modeButton('repeatone', 'repeatOne', 'One', 'Repeat the current track');
+  const shuffleButton = modeButton('shuffle', 'shuffle', 'Shuffle', 'Play the rest in random order');
   transportRow.append(prevButton, playButton, nextButton);
   modesRow.append(repeatAllButton, repeatOneButton, shuffleButton);
   foot.append(transportRow, modesRow);
@@ -819,7 +848,7 @@
     badge.textContent = String(items.length);
     badge.hidden = items.length === 0;
     renderList();
-    playButton.textContent = playing ? '❚❚' : '▶';
+    playButton.innerHTML = ICONS[playing ? 'pause' : 'play'];
     repeatAllButton.classList.toggle('on', repeatMode === 'all');
     repeatOneButton.classList.toggle('on', repeatMode === 'one');
     shuffleButton.classList.toggle('on', shuffle);
@@ -979,6 +1008,9 @@
     attributes: true,
     attributeFilter: ['src'],
   });
+
+  const directionWatcher = new MutationObserver(() => host.style.setProperty('direction', 'ltr', 'important'));
+  directionWatcher.observe(document.documentElement, { attributes: true, attributeFilter: ['dir', 'class', 'style'] });
 
   rescan();
   window.addEventListener('load', rescan, { once: true });

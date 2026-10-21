@@ -34,17 +34,15 @@ For `file://` URLs enable **Allow access to file URLs** on the extension card.
 
 | Control | Action |
 | --- | --- |
-| ♪ button | Show / hide the queue panel |
+| ♪ button | Show / hide the queue panel (bottom right, 32px above the page edge to clear site support buttons) |
 | Progress bar | Drag or click to seek inside the current track |
 | Any part of a row (number, title, meta) | Play that track and start the run from there |
 | ↑ / ↓ | Move track up or down in the queue |
 | ✕ | Remove track from the queue |
-| Prev | Previous track in the play order (restarts the track when already first) |
-| ▶ / ❚❚ | Play / pause |
-| Next | Next track in the play order |
-| All | Repeat the run after its last track |
-| One | Repeat the current track forever |
-| Shuffle | Play the remaining tracks in random order |
+| ⏮ / ▶ / ⏭ | Previous, play-pause, next (icons only, always LTR) |
+| All | Repeat the run after its last track (icon + label) |
+| One | Repeat the current track forever (icon + label) |
+| Shuffle | Play the remaining tracks in random order (icon + label) |
 | Rescan | Look for tracks added to the page since load |
 
 Clicking a row is the important one. The queue does not stop on that item: it keeps playing the following items, one by one, in list order. **All** then loops that same run, so a run started in the middle of the list keeps its shape (item 4 → 5 → 6 → 4 → 5 …) instead of jumping back to item 1. **Shuffle** plays the remaining tracks in random order, still starting from the clicked item. **All**, **One** and **Shuffle** are independent toggles; **All** and **One** exclude each other.
@@ -61,6 +59,12 @@ The bar above the transport buttons shows the current position and is seekable (
 Sources served as `data:` URLs have no transfer size, so only the buffered amount is shown for them.
 
 When a track ends, the next one starts automatically. The panel also registers Media Session handlers, so hardware media keys (play/pause/next/previous) work.
+
+## Right-to-left pages
+
+The player is always LTR, no matter what the page does. A right-to-left site cannot flip the panel: the progress bar always fills from left to right, the row order and the transport row stay put (back on the left, next on the right), and the ♪ button stays in the bottom right corner. The direction is forced on the panel itself, so an inherited `direction: rtl` from the site has no effect.
+
+Track titles keep their own script, so a Persian title still reads correctly inside the LTR panel.
 
 ## Two-way sync
 
