@@ -28,6 +28,7 @@
   let dragId = null;
   let volume = 1;
   let muted = false;
+  let floatingWindow = null;
 
   const abs = (url) => {
     if (!url) return '';
@@ -676,6 +677,12 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     volumeMuted:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+    music:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 3v11.5a3.5 3.5 0 1 1-2-3.16V6.6l-8 1.75v8.9a3.5 3.5 0 1 1-2-3.16V6.4L20 3z"/></svg>',
+    floatOut:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></g></svg>',
+    floatIn:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 21H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/><path d="M21 3v7h-7"/><path d="M3 21l8-8"/></g></svg>',
   };
 
   const host = document.createElement('div');
@@ -696,10 +703,13 @@
   fab.className = 'fab';
   fab.title = 'Page queue';
   fab.dataset.act = 'toggle';
-  fab.textContent = '♪';
+  fab.title = 'Page queue';
+  const fabIcon = document.createElement('span');
+  fabIcon.className = 'fab-icon';
+  fabIcon.innerHTML = ICONS.music;
   const badge = document.createElement('span');
   badge.className = 'badge';
-  fab.append(badge);
+  fab.append(fabIcon, badge);
 
   const panel = document.createElement('div');
   panel.className = 'panel';
@@ -714,10 +724,14 @@
   const rescanButton = document.createElement('button');
   rescanButton.dataset.act = 'rescan';
   rescanButton.textContent = 'Rescan';
+  const floatButton = document.createElement('button');
+  floatButton.dataset.act = 'float';
+  floatButton.title = 'Open in its own window';
+  floatButton.innerHTML = ICONS.floatOut;
   const closeButton = document.createElement('button');
   closeButton.dataset.act = 'toggle';
   closeButton.textContent = '×';
-  headActions.append(rescanButton, closeButton);
+  headActions.append(rescanButton, floatButton, closeButton);
   head.append(headTitle, headActions);
 
   const list = document.createElement('div');
@@ -822,10 +836,24 @@
   modesRow.append(repeatAllButton, repeatOneButton, shuffleButton);
   foot.append(transportRow, modesRow);
 
+  const credit = document.createElement('div');
+  credit.className = 'credit';
+  const creditLink = document.createElement('a');
+  creditLink.href = 'https://runak.co';
+  creditLink.target = '_blank';
+  creditLink.rel = 'noopener';
+  creditLink.textContent = 'runak.co';
+  credit.append(
+    document.createTextNode(`© ${new Date().getFullYear()} `),
+    creditLink,
+    document.createTextNode(` v${chrome.runtime.getManifest?.().version || ''}`),
+  );
+  foot.append(credit);
+
   const status = document.createElement('div');
   status.className = 'status';
 
-  panel.append(head, list, toast, progressRow, progressInfo, foot, status);
+  panel.append(head, list, toast, progressRow, progressInfo, status, foot);
   root.append(fab, panel, player);
   document.documentElement.append(host);
 
@@ -947,6 +975,48 @@
     sizeLabel.textContent = parts.join(' · ');
   }
 
+  function toggleFloating() {
+    if (floatingWindow && !floatingWindow.closed) {
+      closeFloating();
+      return;
+    }
+    openFloating();
+  }
+
+  function openFloating() {
+    const win = window.open('', 'queue-player-panel', 'popup=yes,width=380,height=640');
+    if (!win) return;
+    floatingWindow = win;
+    win.document.body.style.margin = '0';
+    win.document.body.style.background = '#17171b';
+    win.document.addEventListener('click', (event) => {
+      if (event.composedPath().includes(host)) return;
+      lastUserClick = performance.now();
+    });
+    win.addEventListener('beforeunload', () => restoreFromFloating());
+    host.setAttribute('data-floating', '');
+    win.document.body.append(host);
+    render();
+  }
+
+  function closeFloating() {
+    if (!floatingWindow) return;
+    const win = floatingWindow;
+    floatingWindow = null;
+    host.removeAttribute('data-floating');
+    document.documentElement.append(host);
+    if (!win.closed) win.close();
+    render();
+  }
+
+  function restoreFromFloating() {
+    if (!floatingWindow) return;
+    floatingWindow = null;
+    host.removeAttribute('data-floating');
+    document.documentElement.append(host);
+    render();
+  }
+
   function applyVolume() {
     player.volume = volume;
     player.muted = muted;
@@ -956,6 +1026,9 @@
     }
     volumeRange.value = String(volume);
     volumeToggle.innerHTML = ICONS[muted || volume === 0 ? 'volumeMuted' : volume < 0.5 ? 'volumeLow' : 'volume'];
+    const floating = Boolean(floatingWindow && !floatingWindow.closed);
+    floatButton.innerHTML = ICONS[floating ? 'floatIn' : 'floatOut'];
+    floatButton.title = floating ? 'Back into the page' : 'Open in its own window';
   }
 
   function makeRowButton(label, action, id) {
@@ -1120,6 +1193,9 @@
       case 'volume':
         muted = !muted;
         applyVolume();
+        break;
+      case 'float':
+        toggleFloating();
         break;
       case 'resume':
         playItem(currentId);

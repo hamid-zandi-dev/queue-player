@@ -47,6 +47,7 @@ Only real media elements enter the queue, so `<img src>`, `<script src>` and fri
 | Control | Action |
 | --- | --- |
 | ♪ button | Show / hide the queue panel (bottom right, 32px above the page edge to clear site support buttons) |
+| ↗ in the panel head | Pop the panel out into its own window, or bring it back into the page |
 | Progress bar | Drag or click to seek inside the current track |
 | Any part of a row (number, title, meta) | Play that track and start the run from there |
 | ⠿ grip | Drag the row to another place in the queue |
@@ -63,6 +64,12 @@ Clicking a row is the important one. The queue does not stop on that item: it ke
 
 Tracks that cannot play (no source, broken URL, unsupported format) are skipped automatically, so the queue never stalls on them.
 
+## Detached window
+
+The ↗ button in the panel head moves the whole panel into a separate Chrome window (380×640). Drag that window to another screen and keep the queue running: the player element travels with the panel, so the audio never stops and the page keeps its own player in sync.
+
+Closing the detached window brings the panel back into the page, and the ↗ button turns into ↙ to send it out again.
+
 ## Volume
 
 The speaker button next to the progress bar opens a vertical slider on hover, and the slider closes again as soon as the pointer leaves. Move the wheel over it to set the volume; the page itself does not scroll while the pointer is there. Clicking the button mutes and unmutes, and the icon follows the level.
@@ -75,7 +82,7 @@ The download button next to the grip saves the track as a file: the extension fe
 
 ## Progress bar
 
-The bar above the transport buttons shows the current position and is seekable (click or drag). Under the time it shows what the browser already has:
+The bar above the transport buttons shows the current position and is seekable (click or drag). The bar line itself is the target, so a click or a drag right on the bar moves the track. Under the bar the panel shows the time and the current track. Under the time it shows what the browser already has:
 
 - `buffered 1:12 (48%)` — how much of the track is in the media buffer.
 - `4.2 MB downloaded` — bytes fetched so far for the current source, summed over the range requests the player made.
@@ -113,6 +120,10 @@ Queue entries are deduplicated by source URL, so a player that reuses one elemen
 - Chrome autoplay policy can block the first programmatic `play()`. When that happens the panel shows **Autoplay blocked by browser. Resume** — one click resumes, and the click also unlocks auto-advance for the rest of the queue.
 - The extension pauses the page's own media while the queue runs, so the site player shows "paused" during queue playback.
 - A track that only plays inside the site player (signed URL, special headers, DRM) is handed back to the page's element, and the site player can then interrupt the queue.
+
+## Team
+
+Built by [runak.co](https://runak.co).
 
 ## Files
 

@@ -27,6 +27,8 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 .fab:hover { background: #1d4ed8; }
+.fab-icon { display: flex; align-items: center; justify-content: center; }
+.fab-icon svg { width: 22px; height: 22px; fill: currentColor; }
 .badge {
   position: absolute;
   inset-block-start: -4px;
@@ -76,7 +78,10 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   font-size: 12px;
 }
 .head-actions button:hover { background: #2e2e37; }
+.head-actions button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; }
 .list {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   padding: 6px;
@@ -186,18 +191,22 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   opacity: 0;
 }
 .progress:hover .progress-handle { opacity: 1; }
+/* The range is the hit area: it must sit on the 4px track, not below it.
+   The box is 12px wider than the track so the 12px thumb travels from the
+   left edge to the right edge of the track, matching the drawn bar. */
 .progress-range {
   position: absolute;
-  inset-block-start: 8px;
-  inset-inline-start: 12px;
-  width: calc(100% - 24px);
-  height: 12px;
+  inset-block-start: -6px;
+  inset-inline-start: -6px;
+  width: calc(100% + 12px);
+  height: 16px;
   margin: 0;
   padding: 0;
   border: 0;
   background: transparent;
   opacity: 0;
   cursor: pointer;
+  touch-action: none;
   -webkit-appearance: none;
   appearance: none;
 }
@@ -205,6 +214,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   width: 12px;
   height: 12px;
   background: transparent;
+  border: 0;
   -webkit-appearance: none;
 }
 .volume { position: relative; flex: none; }
@@ -252,6 +262,18 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   color: #8b8b95;
   font-size: 11px;
 }
+:host([data-floating]) { inset: 0; }
+:host([data-floating]) .fab { display: none; }
+:host([data-floating]) .panel {
+  position: static;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
 .toast {
   display: flex;
   align-items: center;
@@ -297,6 +319,23 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .foot button:hover { background: #2e2e37; }
 .foot button.primary { background: #2563eb; color: #fff; }
 .foot button.on { background: #3b82f6; color: #fff; }
-.status { padding-block: 6px 10px; padding-inline: 12px; color: #8b8b95; font-size: 11px; }
+.status {
+  padding-block: 6px 10px;
+  padding-inline: 12px;
+  color: #8b8b95;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.credit {
+  padding-block: 2px 8px;
+  padding-inline: 12px;
+  color: #6f6f78;
+  text-align: center;
+  font-size: 11px;
+}
+.credit a { color: #6f6f78; text-decoration: none; }
+.credit a:hover { color: #b9b9c2; text-decoration: underline; }
 .empty { padding-block: 18px; padding-inline: 12px; color: #8b8b95; text-align: center; }
 `;
