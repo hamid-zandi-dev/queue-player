@@ -69,7 +69,7 @@ Tracks that cannot play (no source, broken URL, unsupported format) are skipped 
 
 ## Detached window
 
-The ↗ button in the panel head moves the whole panel into a separate Chrome window (380×640). Drag that window to another screen and keep the queue running: the player element travels with the panel, so the audio never stops and the page keeps its own player in sync.
+The ↗ button in the panel head moves the whole panel into a separate Chrome window (380×640). Drag that window to another screen and keep the queue running: only the panel moves; the audio stays in the page, so the track keeps playing without a restart when the panel goes out or comes back.
 
 Closing the detached window brings the panel back into the page, and the ↗ button turns into ↙ to send it out again.
 

@@ -684,7 +684,7 @@
     floatOut:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3h7v7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></g></svg>',
     floatIn:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 21H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/><path d="M21 3v7h-7"/><path d="M3 21l8-8"/></g></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v7h7"/><path d="M21 3l-9 9"/><path d="M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/></g></svg>',
   };
 
   const host = document.createElement('div');
@@ -864,8 +864,14 @@
   status.className = 'status';
 
   panel.append(head, list, toast, progressRow, progressInfo, status, foot);
-  root.append(fabWrap, panel, player);
+  root.append(fabWrap, panel);
   document.documentElement.append(host);
+
+  // Audio stays in the page: moving a media element to the floating window reloads it.
+  const audioHost = document.createElement('div');
+  audioHost.hidden = true;
+  audioHost.attachShadow({ mode: 'closed' }).append(player);
+  document.documentElement.append(audioHost);
   setShown(wasShown());
 
   player.addEventListener('ended', () => {
@@ -1019,6 +1025,7 @@
     const win = window.open('', 'queue-player-panel', 'popup=yes,width=380,height=640');
     if (!win) return;
     floatingWindow = win;
+    win.document.title = 'Queue Player';
     win.document.body.style.margin = '0';
     win.document.body.style.background = '#17171b';
     win.document.addEventListener('click', (event) => {
@@ -1173,7 +1180,8 @@
   });
 
   root.addEventListener('click', (event) => {
-    if (!(event.target instanceof Element)) return;
+    // Nodes rendered while floating belong to the other window, so instanceof Element fails there.
+    if (typeof event.target?.closest !== 'function') return;
     const action = event.target.closest('[data-act]');
     const row = event.target.closest('.row');
     const act = action?.dataset.act || '';
@@ -1283,7 +1291,7 @@
   );
 
   document.addEventListener('play', announcePlay, true);
-  root.addEventListener('play', announcePlay, true);
+  player.addEventListener('play', announcePlay);
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message || typeof message.type !== 'string' || !message.type.startsWith('qp:')) return undefined;
