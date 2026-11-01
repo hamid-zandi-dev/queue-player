@@ -9,7 +9,7 @@ No build step, no dependencies, no publish. Load it unpacked and test it locally
 1. Open `chrome://extensions`.
 2. Turn on **Developer mode** (top right toggle).
 3. Click **Load unpacked**.
-4. Select the `extension` folder of this repo (`/home/hzandi/queue-player/extension`).
+4. Select the `extension` folder of this repo.
 5. Open the target page and **reload it** (the content script only runs on pages loaded after install).
 6. Click the **Queue Player** toolbar button (pin it first). The blue **♪** button then appears in the bottom right corner of that tab only, and stays there while you follow links inside the same site (each new page is rescanned). The queue panel opens on its own each time; click the ♪ button to close or reopen it.
 
