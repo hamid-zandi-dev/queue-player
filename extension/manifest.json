@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Queue Player",
   "version": "1.3.7",
-  "description": "Play every audio or video track found on a page back to back, as a queue.",
+  "description": "Play every audio track found on a page back to back, as a queue.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",

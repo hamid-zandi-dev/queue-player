@@ -1,6 +1,6 @@
 # Queue Player
 
-Chrome extension (Manifest V3) that finds every audio/video track already on a page and plays them one after another, so nobody has to click each track by hand.
+Chrome extension (Manifest V3) that finds every audio track already on a page and plays them one after another, so nobody has to click each track by hand.
 
 ![Queue Player panel on a music page](store-screenshot-1280x800.png)
 
