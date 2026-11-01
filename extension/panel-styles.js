@@ -262,8 +262,6 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 }
 .volume:hover .volume-slider { display: flex; }
 .volume-range {
-  -webkit-appearance: slider-vertical;
-  appearance: slider-vertical;
   writing-mode: vertical-lr;
   direction: rtl;
   width: 18px;
