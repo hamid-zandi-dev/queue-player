@@ -30,6 +30,7 @@
   let volume = 1;
   let muted = false;
   let floatingWindow = null;
+  let visible = false;
 
   const abs = (url) => {
     if (!url) return '';
@@ -986,6 +987,7 @@
   }
 
   function setShown(shown) {
+    visible = shown;
     panel.hidden = !shown;
     if (shown) host.style.removeProperty('display');
     else host.style.setProperty('display', 'none', 'important');
@@ -1239,6 +1241,20 @@
     render();
   });
 
+  function pausePlayback() {
+    player.pause();
+    [pageEl, itemById(currentId)?.el].forEach((el) => el?.pause?.());
+  }
+
+  function announcePlay() {
+    if (!visible) return;
+    try {
+      chrome.runtime.sendMessage({ type: 'qp:playing' }).catch(() => {});
+    } catch {
+      // extension was reloaded; this page has a stale content script
+    }
+  }
+
   function updateMediaSession() {
     if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
     const item = itemById(currentId);
@@ -1249,13 +1265,7 @@
         album: 'Queue Player',
       });
       navigator.mediaSession.setActionHandler('play', () => togglePlay());
-      navigator.mediaSession.setActionHandler('pause', () => {
-        if (source === 'own') player.pause();
-        else {
-          const current = itemById(currentId);
-          if (current?.el && typeof current.el.pause === 'function') current.el.pause();
-        }
-      });
+      navigator.mediaSession.setActionHandler('pause', pausePlayback);
       navigator.mediaSession.setActionHandler('previoustrack', () => prev());
       navigator.mediaSession.setActionHandler('nexttrack', () => next());
     } catch {
@@ -1272,10 +1282,14 @@
     true,
   );
 
+  document.addEventListener('play', announcePlay, true);
+  root.addEventListener('play', announcePlay, true);
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message || typeof message.type !== 'string' || !message.type.startsWith('qp:')) return undefined;
     if (message.type === 'qp:rescan') rescan();
     if (message.type === 'qp:show') setShown(true);
+    if (message.type === 'qp:pause' && visible) pausePlayback();
     sendResponse({ count: items.length });
     return true;
   });

@@ -20,6 +20,9 @@
       "32": "icons/icon32.png"
     }
   },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": [

@@ -61,6 +61,8 @@ Only real media elements enter the queue, so `<img src>`, `<script src>` and fri
 | Shuffle | Play the remaining tracks in random order (icon + label) |
 | Rescan | Look for tracks added to the page since load |
 
+When the player is shown in several tabs, starting playback in one tab pauses the others, so their audio never mixes.
+
 Clicking a row is the important one. The queue does not stop on that item: it keeps playing the following items, one by one, in list order. **All** then loops that same run, so a run started in the middle of the list keeps its shape (item 4 → 5 → 6 → 4 → 5 …) instead of jumping back to item 1. **Shuffle** plays the remaining tracks in random order, still starting from the clicked item. **All**, **One** and **Shuffle** are independent toggles; **All** and **One** exclude each other.
 
 Tracks that cannot play (no source, broken URL, unsupported format) are skipped automatically, so the queue never stalls on them.
@@ -134,6 +136,7 @@ extension/
   content.js         scan, queue, auto-advance, in-page panel
   panel-styles.js    panel CSS (injected into a shadow root)
   popup.html/js      toolbar popup: track count, open panel, rescan
+  background.js      tells other tabs to pause when one tab starts playing
   icons/             app icon (icon.svg source, PNG sizes for Chrome)
 test-page.html       per track media elements, one reused element
 site-player.html     one shared element that swaps src, like a real site
