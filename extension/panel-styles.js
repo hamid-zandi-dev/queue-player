@@ -19,7 +19,6 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   justify-content: center;
   width: 44px;
   height: 44px;
-  margin-inline-start: auto;
   border-radius: 50%;
   background: #2563eb;
   color: #fff;
@@ -27,6 +26,25 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 .fab:hover { background: #1d4ed8; }
+.fab-wrap { position: relative; width: 44px; margin-inline-start: auto; }
+.fab-hide {
+  position: absolute;
+  inset-block-start: -6px;
+  inset-inline-start: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #24242b;
+  color: #cfcfd6;
+  font-size: 13px;
+  line-height: 18px;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.fab-wrap:hover .fab-hide { opacity: 1; pointer-events: auto; }
+.fab-hide:hover { background: #ef4444; color: #fff; }
 .fab-icon { display: flex; align-items: center; justify-content: center; }
 .fab-icon svg { width: 22px; height: 22px; fill: currentColor; }
 .badge {
@@ -263,7 +281,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   font-size: 11px;
 }
 :host([data-floating]) { inset: 0; }
-:host([data-floating]) .fab { display: none; }
+:host([data-floating]) .fab-wrap { display: none; }
 :host([data-floating]) .panel {
   position: static;
   width: 100%;

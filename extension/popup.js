@@ -16,7 +16,7 @@ async function send(message) {
 }
 
 async function refresh() {
-  const response = await send({ type: 'qp:status' });
+  const response = await send({ type: 'qp:show' });
   if (!response) {
     statusEl.textContent = 'No access to this page. Reload the page, then try again.';
     return;

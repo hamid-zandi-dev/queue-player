@@ -690,6 +690,7 @@
   const root = host.attachShadow({ mode: 'open' });
 
   host.style.setProperty('direction', 'ltr', 'important');
+  setShown(false);
 
   const style = document.createElement('style');
   style.textContent = globalThis.QP_STYLES;
@@ -710,6 +711,14 @@
   const badge = document.createElement('span');
   badge.className = 'badge';
   fab.append(fabIcon, badge);
+  const hideButton = document.createElement('button');
+  hideButton.className = 'fab-hide';
+  hideButton.title = 'Hide on this page';
+  hideButton.dataset.act = 'hide';
+  hideButton.textContent = '×';
+  const fabWrap = document.createElement('div');
+  fabWrap.className = 'fab-wrap';
+  fabWrap.append(fab, hideButton);
 
   const panel = document.createElement('div');
   panel.className = 'panel';
@@ -854,7 +863,7 @@
   status.className = 'status';
 
   panel.append(head, list, toast, progressRow, progressInfo, status, foot);
-  root.append(fab, panel, player);
+  root.append(fabWrap, panel, player);
   document.documentElement.append(host);
 
   player.addEventListener('ended', () => {
@@ -973,6 +982,11 @@
     if (duration > 0) parts.push(`buffered ${formatTime(bufferedEnd)} (${Math.round(bufferedPercent)}%)`);
     if (bytes) parts.push(`${formatBytes(bytes)} downloaded`);
     sizeLabel.textContent = parts.join(' · ');
+  }
+
+  function setShown(shown) {
+    if (shown) host.style.removeProperty('display');
+    else host.style.setProperty('display', 'none', 'important');
   }
 
   function toggleFloating() {
@@ -1169,6 +1183,10 @@
       case 'toggle':
         panel.hidden = !panel.hidden;
         break;
+      case 'hide':
+        panel.hidden = true;
+        setShown(false);
+        break;
       case 'rescan':
         rescan();
         break;
@@ -1242,7 +1260,11 @@
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message || typeof message.type !== 'string' || !message.type.startsWith('qp:')) return undefined;
     if (message.type === 'qp:rescan') rescan();
-    if (message.type === 'qp:togglePanel') panel.hidden = !panel.hidden;
+    if (message.type === 'qp:show') setShown(true);
+    if (message.type === 'qp:togglePanel') {
+      setShown(true);
+      panel.hidden = !panel.hidden;
+    }
     sendResponse({ count: items.length });
     return true;
   });

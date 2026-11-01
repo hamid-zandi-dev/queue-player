@@ -11,7 +11,7 @@ No build step, no dependencies, no publish. Load it unpacked and test it locally
 3. Click **Load unpacked**.
 4. Select the `extension` folder of this repo (`/home/hzandi/queue-player/extension`).
 5. Open the target page and **reload it** (the content script only runs on pages loaded after install).
-6. The blue **♪** button appears in the bottom right corner of the page. Click it to open the queue.
+6. Click the **Queue Player** toolbar button (pin it first). The blue **♪** button then appears in the bottom right corner of that tab only. Click it to open the queue.
 
 To test a local file (`file:///...`): on `chrome://extensions`, click the extension, enable **Allow access to file URLs**.
 
@@ -47,6 +47,7 @@ Only real media elements enter the queue, so `<img src>`, `<script src>` and fri
 | Control | Action |
 | --- | --- |
 | ♪ button | Show / hide the queue panel (bottom right, 32px above the page edge to clear site support buttons) |
+| × on the ♪ button (on hover) | Hide the ♪ button and panel on this page; the toolbar button brings it back |
 | ↗ in the panel head | Pop the panel out into its own window, or bring it back into the page |
 | Progress bar | Drag or click to seek inside the current track |
 | Any part of a row (number, title, meta) | Play that track and start the run from there |
