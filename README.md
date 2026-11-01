@@ -134,6 +134,7 @@ extension/
   content.js         scan, queue, auto-advance, in-page panel
   panel-styles.js    panel CSS (injected into a shadow root)
   popup.html/js      toolbar popup: track count, open panel, rescan
+  icons/             app icon (icon.svg source, PNG sizes for Chrome)
 test-page.html       per track media elements, one reused element
 site-player.html     one shared element that swaps src, like a real site
 discovery.html       every audio shape: source children, data-src, blob, links
