@@ -2,6 +2,8 @@
 
 Chrome extension (Manifest V3) that finds every audio/video track already on a page and plays them one after another, so nobody has to click each track by hand.
 
+![Queue Player panel on a music page](store-screenshot-1280x800.png)
+
 No build step, no dependencies, no publish. Load it unpacked and test it locally.
 
 ## Install locally (no Chrome Web Store)
