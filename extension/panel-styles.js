@@ -157,6 +157,9 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
 .grip svg { width: 14px; height: 14px; fill: currentColor; }
 .row-actions button svg { width: 13px; height: 13px; fill: none; stroke: currentColor; }
 .row-actions button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 22px;
   height: 22px;
   border-radius: 5px;
@@ -164,6 +167,7 @@ button { font: inherit; color: inherit; cursor: pointer; border: 0; background: 
   font-size: 12px;
 }
 .row-actions button:hover { background: #2e2e37; color: #e8e8ea; }
+.row-actions button:disabled { opacity: 0.3; pointer-events: none; }
 .progress-row {
   display: flex;
   align-items: center;

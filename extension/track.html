@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Queue Player</title>
+    <link rel="icon" href="icons/icon32.png" />
+    <style>
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 16px;
+        box-sizing: border-box;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #17171b;
+        color: #e8e8ea;
+      }
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
+      audio {
+        width: min(560px, 100%);
+      }
+      p {
+        margin: 0;
+        max-width: 560px;
+        color: #8b8b95;
+        font-size: 12px;
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="name"></h1>
+    <audio id="audio" controls preload="metadata"></audio>
+    <p id="source"></p>
+    <script src="track.js"></script>
+  </body>
+</html>

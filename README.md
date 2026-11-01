@@ -52,7 +52,7 @@ Only real media elements enter the queue, so `<img src>`, `<script src>` and fri
 | Progress bar | Drag or click to seek inside the current track |
 | Any part of a row (number, title, meta) | Play that track and start the run from there |
 | ⠿ grip | Drag the row to another place in the queue |
-| ⬇ | Download the track as a file |
+| ↗ on a row | Open the track in a new tab with its own player |
 | ✕ | Remove track from the queue |
 | 🔊 next to the progress bar | Hover for a vertical volume slider, wheel to set the volume, click to mute |
 | ⏮ / ▶ / ⏭ | Previous, play-pause, next (icons only, always LTR) |
@@ -77,18 +77,18 @@ Closing the detached window brings the panel back into the page, and the ↗ but
 
 The speaker button next to the progress bar opens a vertical slider on hover, and the slider closes again as soon as the pointer leaves. Move the wheel over it to set the volume; the page itself does not scroll while the pointer is there. Clicking the button mutes and unmutes, and the icon follows the level.
 
-## Download and reorder
+## Open in a tab and reorder
 
 Rows are reordered by dragging them on the grip. The row follows the pointer and drops into its new place.
 
-The download button next to the grip saves the track as a file: the extension fetches it (with the page's cookies) and saves it under its own name, so it works for cross origin files too. If the fetch is blocked, the file opens in a tab instead so it can still be saved by hand.
+The ↗ button next to the grip opens the track in a new tab, on a small Queue Player page with a standard audio player. The file plays there even when the site serves it as an attachment. Tracks with a `blob:` source cannot be opened this way, so their button is dimmed.
 
 ## Progress bar
 
 The bar above the transport buttons shows the current position and is seekable (click or drag). The bar line itself is the target, so a click or a drag right on the bar moves the track. Under the bar the panel shows the time and the current track. Under the time it shows what the browser already has:
 
 - `buffered 1:12 (48%)` — how much of the track is in the media buffer.
-- `4.2 MB downloaded` — bytes fetched so far for the current source, summed over the range requests the player made.
+- `4.2 MB loaded` — bytes fetched so far for the current source, summed over the range requests the player made.
 
 Sources served as `data:` URLs have no transfer size, so only the buffered amount is shown for them.
 
@@ -136,7 +136,8 @@ extension/
   content.js         scan, queue, auto-advance, in-page panel
   panel-styles.js    panel CSS (injected into a shadow root)
   popup.html/js      toolbar popup: track count, open panel, rescan
-  background.js      tells other tabs to pause when one tab starts playing
+  background.js      pauses other tabs when one starts playing; opens track tabs
+  track.html/js      new tab page that plays one track
   icons/             app icon (icon.svg source, PNG sizes for Chrome)
 test-page.html       per track media elements, one reused element
 site-player.html     one shared element that swaps src, like a real site

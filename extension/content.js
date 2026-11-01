@@ -585,38 +585,6 @@
     render();
   }
 
-  function fileExtension(url) {
-    const match = /\.([a-z0-9]{2,5})(?:[?#]|$)/i.exec(url || '');
-    return match ? `.${match[1]}` : '';
-  }
-
-  async function downloadItem(item) {
-    if (!item || !item.src || item.src.startsWith('blob:')) return;
-    const name = `${fileName(item.src) || 'track'}${fileExtension(item.src)}`;
-    try {
-      const response = await fetch(item.src, { credentials: 'include' });
-      if (!response.ok) throw new Error('request failed');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = name;
-      document.body.append(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 20000);
-    } catch {
-      const link = document.createElement('a');
-      link.href = item.src;
-      link.download = name;
-      link.target = '_blank';
-      link.rel = 'noopener';
-      document.body.append(link);
-      link.click();
-      link.remove();
-    }
-  }
-
   function commitDragOrder() {
     const ids = [...list.querySelectorAll('.row')].map((row) => Number(row.dataset.id));
     if (ids.length === items.length) {
@@ -671,8 +639,8 @@
     shuffle:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5h4.5v4.5"/><path d="M3.5 20.5L21 3.5"/><path d="M21 16.5v4.5h-4.5"/><path d="M15 15l6 6"/><path d="M3.5 3.5l5 5"/></g></svg>',
     grip: '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></g></svg>',
-    download:
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v10"/><path d="M8 10l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></g></svg>',
+    openTab:
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M8 7h9v9"/></g></svg>',
     volume:
       '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></g></svg>',
     volumeLow:
@@ -943,7 +911,7 @@
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  function downloadSize(url) {
+  function loadedBytes(url) {
     if (!url || url.startsWith('data:')) return 0;
     let bytes = 0;
     performance.getEntriesByType('resource').forEach((entry) => {
@@ -985,10 +953,10 @@
     if (document.activeElement !== progressRange) progressRange.value = String(time);
     progressRange.max = String(duration || 0);
     timeLabel.textContent = `${formatTime(time)} / ${formatTime(duration)}`;
-    const bytes = downloadSize(item?.src || '');
+    const bytes = loadedBytes(item?.src || '');
     const parts = [];
     if (duration > 0) parts.push(`buffered ${formatTime(bufferedEnd)} (${Math.round(bufferedPercent)}%)`);
-    if (bytes) parts.push(`${formatBytes(bytes)} downloaded`);
+    if (bytes) parts.push(`${formatBytes(bytes)} loaded`);
     sizeLabel.textContent = parts.join(' · ');
   }
 
@@ -1113,12 +1081,13 @@
       grip.draggable = true;
       grip.title = 'Drag to reorder';
       grip.innerHTML = ICONS.grip;
-      const download = makeRowButton('', 'download', item.id);
-      download.innerHTML = ICONS.download;
-      download.title = 'Download this track';
+      const open = makeRowButton('', 'open', item.id);
+      open.disabled = !canOpenInTab(item);
+      open.innerHTML = ICONS.openTab;
+      open.title = 'Open in a new tab';
       const remove = makeRowButton('✕', 'remove', item.id);
       remove.title = 'Remove from the queue';
-      actions.append(grip, download, remove);
+      actions.append(grip, open, remove);
 
       row.append(idx, title, meta, actions);
       list.append(row);
@@ -1189,8 +1158,8 @@
     if (row) {
       if (event.target.closest('.grip')) return;
       const rowId = Number(row.dataset.id);
-      if (act === 'download') {
-        downloadItem(itemById(rowId));
+      if (act === 'open') {
+        openInTab(itemById(rowId));
         return;
       }
       if (act === 'remove') {
@@ -1254,13 +1223,24 @@
     [pageEl, itemById(currentId)?.el].forEach((el) => el?.pause?.());
   }
 
-  function announcePlay() {
-    if (!visible) return;
+  function sendToBackground(message) {
     try {
-      chrome.runtime.sendMessage({ type: 'qp:playing' }).catch(() => {});
+      chrome.runtime.sendMessage(message).catch(() => {});
     } catch {
       // extension was reloaded; this page has a stale content script
     }
+  }
+
+  function announcePlay() {
+    if (visible) sendToBackground({ type: 'qp:playing' });
+  }
+
+  function canOpenInTab(item) {
+    return Boolean(item?.src) && !item.src.startsWith('blob:');
+  }
+
+  function openInTab(item) {
+    if (canOpenInTab(item)) sendToBackground({ type: 'qp:openTab', src: item.src });
   }
 
   function updateMediaSession() {
