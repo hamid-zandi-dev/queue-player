@@ -691,7 +691,6 @@
   const root = host.attachShadow({ mode: 'open' });
 
   host.style.setProperty('direction', 'ltr', 'important');
-  setShown(wasShown());
 
   const style = document.createElement('style');
   style.textContent = globalThis.QP_STYLES;
@@ -866,6 +865,7 @@
   panel.append(head, list, toast, progressRow, progressInfo, status, foot);
   root.append(fabWrap, panel, player);
   document.documentElement.append(host);
+  setShown(wasShown());
 
   player.addEventListener('ended', () => {
     if (source === 'own') advance();
@@ -986,6 +986,7 @@
   }
 
   function setShown(shown) {
+    panel.hidden = !shown;
     if (shown) host.style.removeProperty('display');
     else host.style.setProperty('display', 'none', 'important');
     try {
@@ -1199,7 +1200,6 @@
         panel.hidden = !panel.hidden;
         break;
       case 'hide':
-        panel.hidden = true;
         setShown(false);
         break;
       case 'rescan':
@@ -1276,10 +1276,6 @@
     if (!message || typeof message.type !== 'string' || !message.type.startsWith('qp:')) return undefined;
     if (message.type === 'qp:rescan') rescan();
     if (message.type === 'qp:show') setShown(true);
-    if (message.type === 'qp:togglePanel') {
-      setShown(true);
-      panel.hidden = !panel.hidden;
-    }
     sendResponse({ count: items.length });
     return true;
   });

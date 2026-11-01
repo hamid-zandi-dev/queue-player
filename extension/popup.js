@@ -25,7 +25,7 @@ async function refresh() {
 }
 
 document.getElementById('open').addEventListener('click', async () => {
-  await send({ type: 'qp:togglePanel' });
+  await send({ type: 'qp:show' });
   window.close();
 });
 
