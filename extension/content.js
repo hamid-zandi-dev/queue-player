@@ -3,6 +3,7 @@
   globalThis.__queuePlayerLoaded = true;
 
   const MEDIA = 'audio, video';
+  const SHOWN_KEY = 'queue-player:shown';
   const items = [];
   const known = new WeakSet();
 
@@ -690,7 +691,7 @@
   const root = host.attachShadow({ mode: 'open' });
 
   host.style.setProperty('direction', 'ltr', 'important');
-  setShown(false);
+  setShown(wasShown());
 
   const style = document.createElement('style');
   style.textContent = globalThis.QP_STYLES;
@@ -987,6 +988,20 @@
   function setShown(shown) {
     if (shown) host.style.removeProperty('display');
     else host.style.setProperty('display', 'none', 'important');
+    try {
+      if (shown) sessionStorage.setItem(SHOWN_KEY, '1');
+      else sessionStorage.removeItem(SHOWN_KEY);
+    } catch {
+      // storage blocked on this page
+    }
+  }
+
+  function wasShown() {
+    try {
+      return sessionStorage.getItem(SHOWN_KEY) === '1';
+    } catch {
+      return false;
+    }
   }
 
   function toggleFloating() {
